@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { Rekog } from '@/components/Rekog';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -26,10 +27,11 @@ export default function Home() {
     <div
       style={{
         minHeight: '100vh',
-        width: '100vw',
+        width: '100%',
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
+        flexDirection: 'column',
+        alignItems: 'center',
+        overflowX: 'hidden',
       }}
     >
       <div
@@ -46,6 +48,7 @@ export default function Home() {
       >
         <div className="rekog-button">認識開始</div>
       </div>
+      <Rekog />
     </div>
   );
 }
