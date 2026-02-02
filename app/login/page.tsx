@@ -33,8 +33,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
-      <h1>ログイン</h1>
+    <div style={{ 
+      minHeight: '100vh', 
+      width: '100vw', 
+      background: '#808080', 
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <h1 style={{ margin: 0 }}>pursue-wotaku</h1>
       {error && <div style={{ color: 'red' }}>{error}</div>}
       <button onClick={handleGoogleLogin}>Googleで続ける</button>
     </div>
