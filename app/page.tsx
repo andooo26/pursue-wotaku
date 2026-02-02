@@ -22,5 +22,30 @@ export default function Home() {
     return null;
   }
 
-  return <div>Hello World</div>;
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+      }}
+    >
+      <div
+        style={{
+          marginTop: '40px',
+          width: '220px',
+          height: '220px',
+          borderRadius: '50%',
+          border: '3px solid #fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div className="rekog-button">認識開始</div>
+      </div>
+    </div>
+  );
 }
