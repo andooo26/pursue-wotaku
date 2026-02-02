@@ -61,7 +61,7 @@ export function Rekog() {
   // データがなければありません、あればtitle/artistのリスト
   return (
     <div style={{ border: '2px solid #ff8c00', padding: '20px', margin: '40px auto', width: '80%', color: '#fff' }}>
-      <h2>認識履歴</h2>
+      <h2 style={{ marginTop: '-10px' }}>認識履歴</h2>
       {loading ? (
         <div></div>
       ) : rekogList.length === 0 ? (
