@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 export function Footer() {
   return (
     <footer
@@ -17,9 +19,15 @@ export function Footer() {
         color: '#fff',
       }}
     >
-      <div style={{ flex: 1, cursor: 'pointer', textAlign: 'center' }}>認識履歴</div>
-      <div style={{ flex: 1, cursor: 'pointer', textAlign: 'center' }}>ホーム</div>
-      <div style={{ flex: 1, cursor: 'pointer', textAlign: 'center' }}>プレイリスト</div>
+      <Link href="/result" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', color: '#fff' }}>
+        認識履歴
+      </Link>
+      <Link href="/" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', color: '#fff' }}>
+        ホーム
+      </Link>
+      <Link href="/playlist" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', color: '#fff' }}>
+        プレイリスト
+      </Link>
     </footer>
   );
 }
