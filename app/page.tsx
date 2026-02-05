@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Rekog } from '@/components/Rekog';
+import { db } from '@/lib/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -19,6 +21,7 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
+  // 録音
   const startRecognition = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -35,7 +38,7 @@ export default function Home() {
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         await sendToAudd(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       setIsRecording(true);
@@ -47,13 +50,14 @@ export default function Home() {
           mediaRecorder.stop();
           setIsRecording(false);
         }
-      }, 8000);
+      }, 8000); // 秒数
     } catch (error) {
       console.error('Error starting recognition:', error);
       setIsRecording(false);
     }
   };
 
+  // audd叩く
   const sendToAudd = async (audioBlob: Blob) => {
     try {
       const formData = new FormData();
@@ -67,14 +71,28 @@ export default function Home() {
       });
 
       const data = await response.json();
-      
+
       if (data.status === 'success' && data.result) {
-        setResult({
-          title: data.result.title || '',
-          artist: data.result.artist || '',
-        });
+        const title = data.result.title || '';
+        const artist = data.result.artist || '';
+
+        setResult({ title, artist });
+
+        // DBに保存
+        if (user) {
+          try {
+            await addDoc(collection(db, 'Rekog'), {
+              title,
+              artist,
+              userId: user.uid,
+              timeStamp: serverTimestamp(),
+            });
+          } catch (e) {
+            console.error('Error:', e);
+          }
+        }
       } else {
-        setResult({ title: '認識できませんでした', artist: '' });
+        setResult({ title: '音楽を認識できませんでした', artist: '' });
       }
     } catch (error) {
       console.error('Error sending to audd:', error);
