@@ -86,6 +86,7 @@ export default function Home() {
               artist,
               userId: user.uid,
               timeStamp: serverTimestamp(),
+              analysis: false,
             });
           } catch (e) {
             console.error('Error:', e);
