@@ -73,7 +73,8 @@ export function Rekog({ maxItems = 15 }: RekogProps) {
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `曲名とアーティスト名が以下のように与えられるので、その楽曲とアーティストの組み合わせで楽曲が存在することを確認したうえで日本語での表記で必ず存在する曲名とアーティスト名を返してください
+    const prompt = `曲名とアーティスト名が以下のように与えられるので、その楽曲とアーティストの組み合わせで楽曲が存在することを確認したうえで日本語での表記で必ず存在する曲名とアーティスト名を返してください。単に翻訳をするのではなく、インターネット上のソースを確認したうえで、各日な情報を格納するようにしてください
+    
 曲名: ${title}
 アーティスト: ${artist}
 
