@@ -88,6 +88,8 @@ export default function Home() {
               timeStamp: serverTimestamp(),
               analysis: false,
             });
+            // 保存完了後リロード
+            window.location.reload();
           } catch (e) {
             console.error('Error:', e);
           }
