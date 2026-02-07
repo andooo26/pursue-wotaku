@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 interface RekogData {
   id: string;
   title: string;
   artist: string;
+  timeText: string;
 }
 
 export function Rekog() {
@@ -21,27 +22,30 @@ export function Rekog() {
       setLoading(false);
       return;
     }
-
     // userIdがログイン中のユーザのもの, titleとartistを取得
     const fetchRekogData = async () => {
       try {
         const q = query(
           collection(db, 'Rekog'),
-          where('userId', '==', user.uid)
+          where('userId', '==', user.uid),
+          orderBy('timeStamp', 'desc'),
+          limit(15)
         );
         const querySnapshot = await getDocs(q);
         const data: RekogData[] = [];
         querySnapshot.forEach((doc) => {
-          const docData = doc.data();
-          console.log('Document ID:', doc.id);
-          console.log('Document Data:', docData);
+          const docData = doc.data() as any;
+          const ts = docData.timeStamp;
+          const date = ts && typeof ts.toDate === 'function' ? ts.toDate() : null;
+          const timeText = date ? date.toLocaleString('ja-JP') : '';
+
           data.push({
             id: doc.id,
             title: docData.title || '',
             artist: docData.artist || '',
+            timeText,
           });
         });
-        console.log('Total documents:', data.length);
         setRekogList(data);
       } catch (error: any) {
         console.error('Error fetching rekog data:', error);
@@ -67,12 +71,6 @@ export function Rekog() {
       ) : rekogList.length === 0 ? (
         <div>データがありません</div>
       ) : (
-<<<<<<< Updated upstream
-        <ul>
-          {rekogList.map((item) => (
-            <li key={item.id}>
-              {item.title} / {item.artist}
-=======
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rekogList.map((item, index) => (
             <li key={item.id} style={{ marginBottom: '12px' }}>
@@ -86,7 +84,6 @@ export function Rekog() {
                   </div>
                 </div>
               </div>
->>>>>>> Stashed changes
             </li>
           ))}
         </ul>
