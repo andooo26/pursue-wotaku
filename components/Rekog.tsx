@@ -12,7 +12,11 @@ interface RekogData {
   timeText: string;
 }
 
-export function Rekog() {
+interface RekogProps {
+  maxItems?: number;
+}
+
+export function Rekog({ maxItems = 15 }: RekogProps) {
   const { user } = useAuth();
   const [rekogList, setRekogList] = useState<RekogData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,12 +29,14 @@ export function Rekog() {
     // userIdがログイン中のユーザのもの, titleとartistを取得
     const fetchRekogData = async () => {
       try {
-        const q = query(
+        let q = query(
           collection(db, 'Rekog'),
           where('userId', '==', user.uid),
-          orderBy('timeStamp', 'desc'),
-          limit(15)
+          orderBy('timeStamp', 'desc')
         );
+        if (maxItems) {
+          q = query(q, limit(maxItems));
+        }
         const querySnapshot = await getDocs(q);
         const data: RekogData[] = [];
         querySnapshot.forEach((doc) => {
