@@ -67,10 +67,26 @@ export function Rekog() {
       ) : rekogList.length === 0 ? (
         <div>データがありません</div>
       ) : (
+<<<<<<< Updated upstream
         <ul>
           {rekogList.map((item) => (
             <li key={item.id}>
               {item.title} / {item.artist}
+=======
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {rekogList.map((item, index) => (
+            <li key={item.id} style={{ marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                <span style={{ marginRight: '8px' }}>{index + 1}.</span>
+                <div style={{ flex: 1 }}>
+                  <div>{item.title}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#ccc', marginTop: '4px' }}>
+                    <span>{item.artist}</span>
+                    {item.timeText && <span>{item.timeText}</span>}
+                  </div>
+                </div>
+              </div>
+>>>>>>> Stashed changes
             </li>
           ))}
         </ul>
