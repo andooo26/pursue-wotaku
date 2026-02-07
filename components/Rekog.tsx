@@ -3,14 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  limit,
-} from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 interface RekogData {
   id: string;
@@ -29,8 +22,7 @@ export function Rekog() {
       setLoading(false);
       return;
     }
-
-    // 認識履歴に出す内容を取得
+    // userIdがログイン中のユーザのもの, titleとartistを取得
     const fetchRekogData = async () => {
       try {
         const q = query(
@@ -44,8 +36,7 @@ export function Rekog() {
         querySnapshot.forEach((doc) => {
           const docData = doc.data() as any;
           const ts = docData.timeStamp;
-          const date =
-            ts && typeof ts.toDate === 'function' ? ts.toDate() : null;
+          const date = ts && typeof ts.toDate === 'function' ? ts.toDate() : null;
           const timeText = date ? date.toLocaleString('ja-JP') : '';
 
           data.push({
@@ -81,10 +72,18 @@ export function Rekog() {
         <div>データがありません</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {rekogList.map((item) => (
-            <li key={item.id} style={{ marginBottom: '4px' }}>
-              {item.title} / {item.artist}
-              {item.timeText && ` / ${item.timeText}`}
+          {rekogList.map((item, index) => (
+            <li key={item.id} style={{ marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                <span style={{ marginRight: '8px' }}>{index + 1}.</span>
+                <div style={{ flex: 1 }}>
+                  <div>{item.title}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#ccc', marginTop: '4px' }}>
+                    <span>{item.artist}</span>
+                    {item.timeText && <span>{item.timeText}</span>}
+                  </div>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
