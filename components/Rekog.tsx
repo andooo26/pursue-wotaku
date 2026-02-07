@@ -62,7 +62,7 @@ export function Rekog() {
     fetchRekogData();
   }, [user]);
 
-  // データがなければありません、あればtitle/artistのリスト
+  // データがなければありません、あれば title / artist / timeStamp のリスト
   return (
     <div style={{ border: '2px solid #ff8c00', padding: '20px', margin: '40px auto', width: '80%', color: '#fff' }}>
       <h2 style={{ marginTop: '-10px' }}>認識履歴</h2>
