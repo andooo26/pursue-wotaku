@@ -8,16 +8,20 @@
     "start": "next start"
   },
   "dependencies": {
+    "@google-cloud/vision": "^5.3.4",
     "firebase": "^12.8.0",
     "next": "16.1.6",
+    "next-auth": "^4.24.13",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
