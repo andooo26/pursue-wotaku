@@ -75,6 +75,12 @@ export default function Home() {
       if (data.status === 'success' && data.result) {
         const title = data.result.title || '';
         const artist = data.result.artist || '';
+        // SpotifyIDを取得
+        const trackId = data.result.spotify?.id || 
+                       data.result.spotify?.track_id || 
+                       data.result.spotify_id || 
+                       data.result.id || 
+                       '';
 
         setResult({ title, artist });
 
@@ -84,9 +90,13 @@ export default function Home() {
             await addDoc(collection(db, 'Rekog'), {
               title,
               artist,
+              trackId,
               userId: user.uid,
               timeStamp: serverTimestamp(),
+              analysis: false,
             });
+            // 保存完了後リロード
+            window.location.reload();
           } catch (e) {
             console.error('Error:', e);
           }
