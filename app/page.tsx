@@ -22,34 +22,75 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
-  // プッシュ通知の購読登録
+  // プッシュ通知の登録
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       registerServiceWorker();
     }
+        return () => {
+    };
   }, []);
 
   const registerServiceWorker = async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker registered:', registration);
+      // 既存のServiceWorker登録を確認
+      let registration = await navigator.serviceWorker.getRegistration();
+      
+      if (!registration) {
+        // 登録が存在しないなら新規登録
+        registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('Service Worker registered:', registration);
+      } else {
+        console.log('Service Worker already registered:', registration);
+      }
 
       // プッシュ通知の許可を取得
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // 購読情報を取得
-        const vapidKey = urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
-        );
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: vapidKey as BufferSource,
-        });
-        subscriptionRef.current = subscription;
-        console.log('Push subscription:', subscription);
+        // VAPID公開鍵の確認
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.error('VAPID公開鍵が設定されていません');
+          return;
+        }
+
+        try {
+          // 既存の購読を確認
+          let subscription = await registration.pushManager.getSubscription();
+          
+          if (!subscription) {
+            // 購読が存在しない場合新規購読
+            const vapidKey = urlBase64ToUint8Array(vapidPublicKey);
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: vapidKey as BufferSource,
+            });
+            console.log('Push subscription created:', subscription);
+          } else {
+            console.log('Push subscription already exists:', subscription);
+          }
+          
+          subscriptionRef.current = subscription;
+        } catch (pushError: any) {
+          if (pushError.name === 'AbortError') {
+            console.log('Push subscription aborted (may already exist)');
+            const existingSubscription = await registration.pushManager.getSubscription();
+            if (existingSubscription) {
+              subscriptionRef.current = existingSubscription;
+            }
+          } else {
+            console.error('Push subscription failed:', pushError);
+          }
+        }
+      } else {
+        console.log('プッシュ通知の許可が得られませんでした:', permission);
       }
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Service Worker registration aborted');
+      } else {
+        console.error('Service Worker registration failed:', error);
+      }
     }
   };
 
