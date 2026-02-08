@@ -11,6 +11,7 @@ interface RekogData {
   title: string;
   artist: string;
   timeText: string;
+  genres: string[];
 }
 
 interface RekogProps {
@@ -50,6 +51,7 @@ export function Rekog({ maxItems }: RekogProps) {
           title: docData.title || '',
           artist: docData.artist || '',
           timeText,
+          genres: docData.genres || [],
         });
       });
       setRekogList(data);
@@ -193,6 +195,24 @@ JSON形式で以下のように返してください:
                     <span>{item.artist}</span>
                     {item.timeText && <span>{item.timeText}</span>}
                   </div>
+                  {item.genres && item.genres.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                      {item.genres.map((genre, genreIndex) => (
+                        <span
+                          key={genreIndex}
+                          style={{
+                            background: '#808080',
+                            color: '#fff',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </li>
