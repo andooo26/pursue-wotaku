@@ -299,7 +299,7 @@ export default function Home() {
           {result.title} / {result.artist}
         </div>
       )}
-      <Rekog />
+      <Rekog maxItems={15} />
     </div>
   );
 }
