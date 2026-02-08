@@ -121,7 +121,7 @@ JSON形式で以下のように返してください:
       }
       const querySnapshot = await getDocs(q);
       
-      const unanalyzedDocs: Array<{ id: string; title: string; artist: string }> = [];
+      const unanalyzedDocs: Array<{ id: string; title: string; artist: string; trackId?: string }> = [];
       querySnapshot.forEach((docSnapshot) => {
         const docData = docSnapshot.data();
         if (!docData.analysis) {
@@ -129,18 +129,60 @@ JSON形式で以下のように返してください:
             id: docSnapshot.id,
             title: docData.title || '',
             artist: docData.artist || '',
+            trackId: docData.trackId || '',
           });
         }
       });
 
-      // 日本語化
+      // 各ドキュメントを処理
       for (const item of unanalyzedDocs) {
-        const translated = await translateWithGemini(item.title, item.artist);
-        await updateDoc(doc(db, 'Rekog', item.id), {
-          title: translated.title,
-          artist: translated.artist,
-          analysis: true,
-        });
+        if (item.trackId) {
+          // TrackIdがある場合はSpotify APIから情報を取得
+          try {
+            const response = await fetch('/api/spotify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ trackId: item.trackId }),
+            });
+
+            if (response.ok) {
+              const spotifyData = await response.json();
+              await updateDoc(doc(db, 'Rekog', item.id), {
+                title: spotifyData.title || item.title,
+                artist: spotifyData.artist || item.artist,
+                genres: spotifyData.genres || [],
+                analysis: true,
+              });
+            } else {
+              // Spotify APIが失敗した場合はGeminiで日本語化
+              const translated = await translateWithGemini(item.title, item.artist);
+              await updateDoc(doc(db, 'Rekog', item.id), {
+                title: translated.title,
+                artist: translated.artist,
+                analysis: true,
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching Spotify data:', error);
+            // エラー時はGeminiで日本語化
+            const translated = await translateWithGemini(item.title, item.artist);
+            await updateDoc(doc(db, 'Rekog', item.id), {
+              title: translated.title,
+              artist: translated.artist,
+              analysis: true,
+            });
+          }
+        } else {
+          // TrackIdがない場合はGeminiで日本語化
+          const translated = await translateWithGemini(item.title, item.artist);
+          await updateDoc(doc(db, 'Rekog', item.id), {
+            title: translated.title,
+            artist: translated.artist,
+            analysis: true,
+          });
+        }
       }
 
       // 再取得
