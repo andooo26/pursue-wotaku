@@ -14,12 +14,80 @@ export default function Home() {
   const [result, setResult] = useState<{ title: string; artist: string } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const subscriptionRef = useRef<PushSubscription | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // プッシュ通知の購読登録
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      registerServiceWorker();
+    }
+  }, []);
+
+  const registerServiceWorker = async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered:', registration);
+
+      // プッシュ通知の許可を取得
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        // 購読情報を取得
+        const vapidKey = urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
+        );
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidKey as BufferSource,
+        });
+        subscriptionRef.current = subscription;
+        console.log('Push subscription:', subscription);
+      }
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+    }
+  };
+
+  // VAPID公開鍵をUint8Arrayに変換
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  // プッシュ通知を送信
+  const sendPushNotification = async (title: string, artist: string) => {
+    if (!subscriptionRef.current) {
+      console.log('Push subscription not available');
+      return;
+    }
+
+    try {
+      await fetch('/api/push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscription: subscriptionRef.current,
+          title,
+          artist,
+        }),
+      });
+    } catch (error) {
+      console.error('Error sending push notification:', error);
+    }
+  };
 
   // 録音
   const startRecognition = async () => {
@@ -95,6 +163,10 @@ export default function Home() {
               timeStamp: serverTimestamp(),
               analysis: false,
             });
+            
+            // プッシュ通知を送信
+            await sendPushNotification(title, artist);
+            
             // 保存完了後リロード
             window.location.reload();
           } catch (e) {
