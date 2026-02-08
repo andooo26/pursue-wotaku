@@ -196,17 +196,45 @@ export default function Home() {
         // DBに保存
         if (user) {
           try {
+            let finalTitle = title;
+            let finalArtist = artist;
+            let genres: string[] = [];
+
+            // TrackIdがある場合はSpotify APIから情報を取得
+            if (trackId) {
+              try {
+                const spotifyResponse = await fetch('/api/spotify', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ trackId }),
+                });
+
+                if (spotifyResponse.ok) {
+                  const spotifyData = await spotifyResponse.json();
+                  finalTitle = spotifyData.title || title;
+                  finalArtist = spotifyData.artist || artist;
+                  genres = spotifyData.genres || [];
+                }
+              } catch (spotifyError) {
+                console.error('Error fetching Spotify data:', spotifyError);
+                // Spotify APIが失敗した場合はauddの結果を使用
+              }
+            }
+
             await addDoc(collection(db, 'Rekog'), {
-              title,
-              artist,
+              title: finalTitle,
+              artist: finalArtist,
               trackId,
+              genres,
               userId: user.uid,
               timeStamp: serverTimestamp(),
               analysis: false,
             });
             
             // プッシュ通知を送信
-            await sendPushNotification(title, artist);
+            await sendPushNotification(finalTitle, finalArtist);
             
             // 保存完了後リロード
             window.location.reload();
@@ -272,7 +300,7 @@ export default function Home() {
           {result.title} / {result.artist}
         </div>
       )}
-      <Rekog />
+      <Rekog maxItems={5} />
     </div>
   );
 }

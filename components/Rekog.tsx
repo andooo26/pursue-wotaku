@@ -11,13 +11,14 @@ interface RekogData {
   title: string;
   artist: string;
   timeText: string;
+  genres: string[];
 }
 
 interface RekogProps {
   maxItems?: number;
 }
 
-export function Rekog({ maxItems = 15 }: RekogProps) {
+export function Rekog({ maxItems }: RekogProps) {
   const { user } = useAuth();
   const [rekogList, setRekogList] = useState<RekogData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export function Rekog({ maxItems = 15 }: RekogProps) {
           title: docData.title || '',
           artist: docData.artist || '',
           timeText,
+          genres: docData.genres || [],
         });
       });
       setRekogList(data);
@@ -73,16 +75,25 @@ export function Rekog({ maxItems = 15 }: RekogProps) {
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `曲名とアーティスト名が以下のように与えられるので、その楽曲とアーティストの組み合わせで楽曲が存在することを確認したうえで日本語での表記で必ず存在する曲名とアーティスト名を返してください。単に翻訳をするのではなく、インターネット上のソースを確認したうえで、各日な情報を格納するようにしてください
-    
-曲名: ${title}
-アーティスト: ${artist}
+    const prompt = `
+You are a music metadata normalization system.
 
-JSON形式で以下のように返してください:
-{
-  "title": "曲名",
-  "artist": "アーティスト名"
-}`;
+Use Google Search to verify that the song and artist combination exists.
+
+Tasks:
+- Verify the song exists.
+- Convert title and artist into the most commonly used Japanese localized names.
+- If no Japanese localization is used, keep the English.
+- Do not hallucinate.
+- If not verified, return null.
+
+Output JSON only.
+
+Input:
+Title: "{{TITLE}}"
+Artist: "{{ARTIST}}"
+
+`;
 
     try {
       const result = await model.generateContent(prompt);
@@ -110,7 +121,7 @@ JSON形式で以下のように返してください:
 
     setSyncing(true);
     try {
-      // analysisがfalseのものを処理
+      // 全てのドキュメントを取得
       let q = query(
         collection(db, 'Rekog'),
         where('userId', '==', user.uid),
@@ -121,11 +132,12 @@ JSON形式で以下のように返してください:
       }
       const querySnapshot = await getDocs(q);
       
-      const unanalyzedDocs: Array<{ id: string; title: string; artist: string }> = [];
+      const docsToTranslate: Array<{ id: string; title: string; artist: string }> = [];
       querySnapshot.forEach((docSnapshot) => {
         const docData = docSnapshot.data();
-        if (!docData.analysis) {
-          unanalyzedDocs.push({
+        // analysisがfalseのもののみを処理
+        if (docData.analysis === false) {
+          docsToTranslate.push({
             id: docSnapshot.id,
             title: docData.title || '',
             artist: docData.artist || '',
@@ -133,8 +145,8 @@ JSON形式で以下のように返してください:
         }
       });
 
-      // 日本語化
-      for (const item of unanalyzedDocs) {
+      // 各ドキュメントを日本語化
+      for (const item of docsToTranslate) {
         const translated = await translateWithGemini(item.title, item.artist);
         await updateDoc(doc(db, 'Rekog', item.id), {
           title: translated.title,
@@ -157,22 +169,24 @@ JSON形式で以下のように返してください:
     <div style={{ border: '2px solid #ff8c00', padding: '20px', margin: '40px auto', width: '80%', color: '#fff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-10px', marginBottom: '20px' }}>
         <h2 style={{ margin: 0 }}>認識履歴</h2>
-        <button
-          onClick={handleSync}
-          disabled={syncing || loading}
-          style={{
-            padding: '6px 12px',
-            background: syncing ? '#6c757d' : '#28a745',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: syncing || loading ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-          }}
-        >
-          {syncing ? '同期中' : '今すぐ同期'}
-        </button>
+        {maxItems === undefined && (
+          <button
+            onClick={handleSync}
+            disabled={syncing || loading}
+            style={{
+              padding: '6px 12px',
+              background: 'transparent',
+              color: syncing ? '#6c757d' : '#28a745',
+              border: '1px solid #fff',
+              borderRadius: '4px',
+              cursor: syncing || loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+            }}
+          >
+            {syncing ? '同期中' : '変更を同期'}
+          </button>
+        )}
       </div>
       {loading ? (
         <div></div>
@@ -190,6 +204,24 @@ JSON形式で以下のように返してください:
                     <span>{item.artist}</span>
                     {item.timeText && <span>{item.timeText}</span>}
                   </div>
+                  {item.genres && item.genres.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                      {item.genres.map((genre, genreIndex) => (
+                        <span
+                          key={genreIndex}
+                          style={{
+                            background: '#808080',
+                            color: '#fff',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </li>
