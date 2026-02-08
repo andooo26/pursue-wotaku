@@ -15,11 +15,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const subscription = body.subscription;
+    const title = body.title || '曲を検知しました';
+    const artist = body.artist || '';
 
-    
     const payload = JSON.stringify({
       title: '曲を検知しました',
-      body: 'music taitle',
+      body: artist ? `${title} / ${artist}` : title,
     });
 
     await webpush.sendNotification(subscription, payload);
