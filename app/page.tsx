@@ -1,19 +1,114 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Rekog } from '@/components/Rekog';
+import { db } from '@/lib/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [isRecording, setIsRecording] = useState(false);
+  const [result, setResult] = useState<{ title: string; artist: string } | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // 録音
+  const startRecognition = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await sendToAudd(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      setIsRecording(true);
+      setResult(null);
+      mediaRecorder.start();
+
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          setIsRecording(false);
+        }
+      }, 8000); // 秒数
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      setIsRecording(false);
+    }
+  };
+
+  // audd叩く
+  const sendToAudd = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.webm');
+      formData.append('return', 'spotify');
+      formData.append('api_token', process.env.NEXT_PUBLIC_AUDD_API_KEY || '');
+
+      const response = await fetch('https://api.audd.io/', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success' && data.result) {
+        const title = data.result.title || '';
+        const artist = data.result.artist || '';
+        // SpotifyIDを取得
+        const trackId = data.result.spotify?.id || 
+                       data.result.spotify?.track_id || 
+                       data.result.spotify_id || 
+                       data.result.id || 
+                       '';
+
+        setResult({ title, artist });
+
+        // DBに保存
+        if (user) {
+          try {
+            await addDoc(collection(db, 'Rekog'), {
+              title,
+              artist,
+              trackId,
+              userId: user.uid,
+              timeStamp: serverTimestamp(),
+              analysis: false,
+            });
+            // 保存完了後リロード
+            window.location.reload();
+          } catch (e) {
+            console.error('Error:', e);
+          }
+        }
+      } else {
+        setResult({ title: '音楽を認識できませんでした', artist: '' });
+      }
+    } catch (error) {
+      console.error('Error sending to audd:', error);
+      setResult({ title: 'エラーが発生しました', artist: '' });
+    }
+  };
 
   if (loading) {
     return null;
@@ -46,8 +141,24 @@ export default function Home() {
           justifyContent: 'center',
         }}
       >
-        <div className="rekog-button">認識開始</div>
+        <button
+          onClick={startRecognition}
+          disabled={isRecording}
+          className="rekog-button"
+          style={{ 
+            cursor: isRecording ? 'not-allowed' : 'pointer',
+            background: 'transparent',
+            outline: 'none',
+          }}
+        >
+          {isRecording ? '認識中...' : '認識開始'}
+        </button>
       </div>
+      {result && (
+        <div style={{ marginTop: '20px', color: '#fff', textAlign: 'center' }}>
+          {result.title} / {result.artist}
+        </div>
+      )}
       <Rekog />
     </div>
   );
