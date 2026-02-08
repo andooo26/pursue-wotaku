@@ -230,6 +230,7 @@ export default function Home() {
               genres,
               userId: user.uid,
               timeStamp: serverTimestamp(),
+              analysis: false,
             });
             
             // プッシュ通知を送信
@@ -299,7 +300,7 @@ export default function Home() {
           {result.title} / {result.artist}
         </div>
       )}
-      <Rekog maxItems={15} />
+      <Rekog maxItems={5} />
     </div>
   );
 }
