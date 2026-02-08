@@ -75,16 +75,25 @@ export function Rekog({ maxItems }: RekogProps) {
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `曲名とアーティスト名が以下のように与えられるので、その楽曲とアーティストの組み合わせで楽曲が存在することをインターネットなどの情報を元に必ず確認したうえで日本語での表記で必ず存在する曲名とアーティスト名を返してください。単に翻訳をするのではなく、インターネット上のソースを確認したうえで、正確な情報を格納するようにしてください。
+    const prompt = `
+You are a music metadata normalization system.
 
-曲名: ${title}
-アーティスト: ${artist}
+Use Google Search to verify that the song and artist combination exists.
 
-JSON形式で以下のように返してください:
-{
-  "title": "曲名",
-  "artist": "アーティスト名"
-}`;
+Tasks:
+- Verify the song exists.
+- Convert title and artist into the most commonly used Japanese localized names.
+- If no Japanese localization is used, keep the English.
+- Do not hallucinate.
+- If not verified, return null.
+
+Output JSON only.
+
+Input:
+Title: "{{TITLE}}"
+Artist: "{{ARTIST}}"
+
+`;
 
     try {
       const result = await model.generateContent(prompt);
@@ -166,9 +175,9 @@ JSON形式で以下のように返してください:
             disabled={syncing || loading}
             style={{
               padding: '6px 12px',
-              background: syncing ? '#6c757d' : '#28a745',
-              color: '#fff',
-              border: 'none',
+              background: 'transparent',
+              color: syncing ? '#6c757d' : '#28a745',
+              border: '1px solid #fff',
               borderRadius: '4px',
               cursor: syncing || loading ? 'not-allowed' : 'pointer',
               fontSize: '14px',
