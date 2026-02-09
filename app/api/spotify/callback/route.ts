@@ -17,7 +17,14 @@ export async function GET(request: Request) {
   }
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return NextResponse.redirect(new URL('/playlist?error=' + encodeURIComponent('Spotify の設定がありません。'), request.url));
+    const missing: string[] = [];
+    if (!clientId) missing.push('SPOTIFY_CLIENT_ID');
+    if (!clientSecret) missing.push('SPOTIFY_CLIENT_SECRET');
+    if (!redirectUri) missing.push('リダイレクトURI');
+    const message =
+      'Spotify の設定がありません。Vercel の環境変数に以下を設定してください: ' +
+      (missing.length > 0 ? missing.join(', ') : 'SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET');
+    return NextResponse.redirect(new URL('/playlist?error=' + encodeURIComponent(message), request.url));
   }
 
   const body = new URLSearchParams({
