@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
@@ -20,7 +20,7 @@ interface GenreGroup {
   songs: PlaylistData[];
 }
 
-export default function PlaylistPage() {
+function PlaylistContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -389,5 +389,13 @@ export default function PlaylistPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PlaylistPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlaylistContent />
+    </Suspense>
   );
 }
