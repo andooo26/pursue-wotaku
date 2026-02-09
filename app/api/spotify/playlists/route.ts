@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   let url: string | null = `https://api.spotify.com/v1/me/playlists?limit=${limit}`;
 
   while (url) {
-    const res = await fetch(url, {
+    const res: Response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {
