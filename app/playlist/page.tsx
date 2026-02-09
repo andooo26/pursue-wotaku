@@ -20,6 +20,13 @@ interface GenreGroup {
   songs: PlaylistData[];
 }
 
+interface SpotifyPlaylistItem {
+  id: string;
+  name: string;
+  uri: string;
+  tracksTotal?: number;
+}
+
 function PlaylistContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -31,6 +38,19 @@ function PlaylistContent() {
   const [selectedSongIds, setSelectedSongIds] = useState<Set<string>>(new Set());
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
   const [spotifyLinked, setSpotifyLinked] = useState(false);
+
+  // 既存プレイリストをジャンル分け
+  const [playlistSectionOpen, setPlaylistSectionOpen] = useState(false);
+  const [playlistsSearch, setPlaylistsSearch] = useState('');
+  const [userPlaylists, setUserPlaylists] = useState<SpotifyPlaylistItem[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
+  const [selectedPlaylistName, setSelectedPlaylistName] = useState<string>('');
+  const [playlistGenreGroups, setPlaylistGenreGroups] = useState<GenreGroup[]>([]);
+  const [loadingPlaylistTracks, setLoadingPlaylistTracks] = useState(false);
+  const [expandedGenresPlaylist, setExpandedGenresPlaylist] = useState<Set<string>>(new Set());
+  const [selectedPlaylistSongIds, setSelectedPlaylistSongIds] = useState<Set<string>>(new Set());
+  const [addingToPlaylistFromSelection, setAddingToPlaylistFromSelection] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -62,6 +82,15 @@ function PlaylistContent() {
 
   const toggleSongSelection = (songId: string) => {
     setSelectedSongIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(songId)) next.delete(songId);
+      else next.add(songId);
+      return next;
+    });
+  };
+
+  const togglePlaylistSongSelection = (songId: string) => {
+    setSelectedPlaylistSongIds((prev) => {
       const next = new Set(prev);
       if (next.has(songId)) next.delete(songId);
       else next.add(songId);
@@ -121,6 +150,138 @@ function PlaylistContent() {
       setAddingToPlaylist(false);
     }
   };
+
+  const getSelectedTracksFromPlaylist = (): { uri: string; title: string }[] => {
+    const seen = new Set<string>();
+    const result: { uri: string; title: string }[] = [];
+    for (const group of playlistGenreGroups) {
+      for (const song of group.songs) {
+        if (selectedPlaylistSongIds.has(song.id) && song.trackId && !seen.has(song.id)) {
+          seen.add(song.id);
+          result.push({ uri: `spotify:track:${song.trackId}`, title: song.title });
+        }
+      }
+    }
+    return result;
+  };
+
+  const addToSpotifyPlaylistFromSelection = async () => {
+    const tracks = getSelectedTracksFromPlaylist();
+    if (tracks.length === 0) {
+      if (selectedPlaylistSongIds.size > 0) {
+        alert('選択された楽曲に Spotify ID がありません。');
+      } else {
+        alert('楽曲を選択してください。');
+      }
+      return;
+    }
+    setAddingToPlaylistFromSelection(true);
+    try {
+      const res = await fetch('/api/spotify/add-to-playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackUris: tracks.map((t) => t.uri) }),
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401) {
+          setSpotifyLinked(false);
+          alert('Spotify の連携が切れています。「Spotify と連携」から再度ログインしてください。');
+        } else {
+          alert(data.error || 'プレイリストへの追加に失敗しました。');
+        }
+        return;
+      }
+      alert(`${data.addedCount ?? tracks.length} 曲をプレイリストに追加しました。`);
+      setSelectedPlaylistSongIds(new Set());
+    } catch (e) {
+      console.error(e);
+      alert('プレイリストへの追加に失敗しました。');
+    } finally {
+      setAddingToPlaylistFromSelection(false);
+    }
+  };
+
+  const fetchUserPlaylists = async () => {
+    setLoadingPlaylists(true);
+    try {
+      const q = playlistsSearch ? `?q=${encodeURIComponent(playlistsSearch)}` : '';
+      const res = await fetch(`/api/spotify/playlists${q}`, { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) setSpotifyLinked(false);
+        setUserPlaylists([]);
+        return;
+      }
+      const data = await res.json();
+      setUserPlaylists(data.playlists ?? []);
+    } catch {
+      setUserPlaylists([]);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
+  const loadPlaylistTracks = async (playlistId: string, playlistName: string) => {
+    setSelectedPlaylistId(playlistId);
+    setSelectedPlaylistName(playlistName);
+    setSelectedPlaylistSongIds(new Set());
+    setLoadingPlaylistTracks(true);
+    setPlaylistGenreGroups([]);
+    try {
+      const res = await fetch(
+        `/api/spotify/playlist-tracks?playlistId=${encodeURIComponent(playlistId)}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'トラックの取得に失敗しました。');
+        setSelectedPlaylistId(null);
+        setSelectedPlaylistName('');
+        return;
+      }
+      const data = await res.json();
+      const tracks: PlaylistData[] = (data.tracks ?? [])
+        .filter((t: any) => t.genres && t.genres.length > 0)
+        .map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          timeText: '',
+          genres: t.genres,
+          trackId: t.trackId ?? t.id,
+        }));
+      const genreMap = new Map<string, PlaylistData[]>();
+      tracks.forEach((song) => {
+        song.genres.forEach((genre) => {
+          if (!genreMap.has(genre)) genreMap.set(genre, []);
+          genreMap.get(genre)!.push(song);
+        });
+      });
+      const groups: GenreGroup[] = Array.from(genreMap.entries())
+        .map(([genre, songs]) => ({ genre, songs }))
+        .sort((a, b) => a.genre.localeCompare(b.genre));
+      setPlaylistGenreGroups(groups);
+      setExpandedGenresPlaylist(new Set());
+    } catch (e) {
+      console.error(e);
+      setSelectedPlaylistId(null);
+      setSelectedPlaylistName('');
+    } finally {
+      setLoadingPlaylistTracks(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!spotifyLinked || !playlistSectionOpen) return;
+    fetchUserPlaylists();
+  }, [spotifyLinked, playlistSectionOpen]);
+
+  useEffect(() => {
+    if (!spotifyLinked || !playlistSectionOpen) return;
+    const t = setTimeout(() => fetchUserPlaylists(), 300);
+    return () => clearTimeout(t);
+  }, [playlistsSearch]);
 
   const fetchPlaylistData = async () => {
     if (!user) {
@@ -211,10 +372,12 @@ function PlaylistContent() {
         color: '#fff',
       }}
     >
-      {genreGroups.length === 0 ? (
-        <div>ジャンル別のデータがありません</div>
-      ) : (
-        <div style={{ width: '90%', maxWidth: '800px' }}>
+      <div style={{ width: '90%', maxWidth: '800px' }}>
+        {genreGroups.length === 0 && !spotifyLinked && (
+          <div style={{ marginBottom: '24px' }}>ジャンル別のデータがありません</div>
+        )}
+
+        {genreGroups.length > 0 && (
           <div
             style={{
               marginBottom: '24px',
@@ -386,8 +549,290 @@ function PlaylistContent() {
               </div>
             )}
           </div>
+        )}
+
+        {/* 既存プレイリストをジャンル分け */}
+        <div
+          style={{
+            marginBottom: '24px',
+            border: '2px solid #1db954',
+            borderRadius: '8px',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setPlaylistSectionOpen((prev) => !prev)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 0,
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '600',
+                textAlign: 'left',
+              }}
+            >
+              <span>既存プレイリストをジャンル分け</span>
+              <span
+                style={{
+                  display: 'inline-block',
+                  transition: 'transform 0.2s ease',
+                  transform: playlistSectionOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              >
+                ▼
+              </span>
+            </button>
+          </div>
+          {playlistSectionOpen && (
+            <div style={{ padding: '0 20px 20px', borderTop: '1px solid #333' }}>
+              {!spotifyLinked ? (
+                <div style={{ margin: '16px 0' }}>
+                  <p style={{ color: '#aaa', marginBottom: '12px' }}>
+                    Spotify と連携すると、既存のプレイリストを検索してジャンル別に表示できます。
+                  </p>
+                  <a
+                    href="/api/spotify/auth"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      background: '#1db954',
+                      color: '#fff',
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Spotify と連携
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      placeholder="プレイリスト名で検索"
+                      value={playlistsSearch}
+                      onChange={(e) => setPlaylistsSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid #444',
+                        background: '#222',
+                        color: '#fff',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                  {loadingPlaylists ? (
+                    <p style={{ color: '#aaa' }}>プレイリスト一覧を取得中...</p>
+                  ) : userPlaylists.length === 0 ? (
+                    <p style={{ color: '#aaa' }}>プレイリストがありません。</p>
+                  ) : (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0' }}>
+                      {userPlaylists.map((p) => (
+                        <li key={p.id} style={{ marginBottom: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => loadPlaylistTracks(p.id, p.name)}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '12px 16px',
+                              background: selectedPlaylistId === p.id ? '#1db95433' : '#333',
+                              border: '1px solid #444',
+                              borderRadius: '8px',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                            }}
+                          >
+                            {p.name}
+                            {p.tracksTotal != null && (
+                              <span style={{ color: '#888', marginLeft: '8px' }}>({p.tracksTotal} 曲)</span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {selectedPlaylistId && (
+                    <>
+                      <h3
+                        style={{
+                          margin: '16px 0 12px 0',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: '#ccc',
+                        }}
+                      >
+                        ジャンル別の選択したプレイリスト: {selectedPlaylistName}
+                      </h3>
+                      {loadingPlaylistTracks ? (
+                        <p style={{ color: '#aaa' }}>トラックを取得中...</p>
+                      ) : playlistGenreGroups.length === 0 ? (
+                        <p style={{ color: '#aaa' }}>ジャンル情報がある楽曲がありません。</p>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                          {spotifyLinked && (
+                            <button
+                              type="button"
+                              onClick={addToSpotifyPlaylistFromSelection}
+                              disabled={
+                                addingToPlaylistFromSelection || selectedPlaylistSongIds.size === 0
+                              }
+                              style={{
+                                padding: '8px 16px',
+                                background:
+                                  selectedPlaylistSongIds.size > 0 ? '#1db954' : '#333',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '20px',
+                                cursor:
+                                  addingToPlaylistFromSelection || selectedPlaylistSongIds.size === 0
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {addingToPlaylistFromSelection ? '追加中...' : 'プレイリストへ追加'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {!loadingPlaylistTracks &&
+                        playlistGenreGroups.map((group) => (
+                          <div
+                            key={group.genre}
+                            style={{
+                              marginTop: '24px',
+                              padding: '20px',
+                              border: '1px solid #444',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            <h2
+                              style={{
+                                margin: '0 0 20px 0',
+                                fontSize: '20px',
+                                fontWeight: '600',
+                                borderBottom: '1px solid #333',
+                                paddingBottom: '10px',
+                              }}
+                            >
+                              # {group.genre}
+                            </h2>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                              {(expandedGenresPlaylist.has(group.genre)
+                                ? group.songs
+                                : group.songs.slice(0, 5)
+                              ).map((song, index) => (
+                                <li key={`${song.id}-${index}`} style={{ marginBottom: '12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                    <span style={{ marginRight: '4px' }}>{index + 1}.</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div>{song.title}</div>
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          fontSize: '14px',
+                                          color: '#ccc',
+                                          marginTop: '4px',
+                                          gap: '8px',
+                                        }}
+                                      >
+                                        <span>{song.artist}</span>
+                                        <span
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          <label
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              cursor: 'pointer',
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={selectedPlaylistSongIds.has(song.id)}
+                                              onChange={() =>
+                                                togglePlaylistSongSelection(song.id)
+                                              }
+                                              style={{
+                                                width: '18px',
+                                                height: '18px',
+                                                cursor: 'pointer',
+                                              }}
+                                            />
+                                          </label>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                            {group.songs.length > 5 && !expandedGenresPlaylist.has(group.genre) && (
+                              <button
+                                onClick={() => {
+                                  setExpandedGenresPlaylist((prev) =>
+                                    new Set(prev).add(group.genre)
+                                  );
+                                }}
+                                style={{
+                                  marginTop: '12px',
+                                  padding: '6px 12px',
+                                  background: 'transparent',
+                                  color: '#808080',
+                                  border: '1px solid #808080',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                }}
+                              >
+                                もっと見る
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
