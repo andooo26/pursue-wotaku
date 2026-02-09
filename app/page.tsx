@@ -146,13 +146,38 @@ export default function Home() {
     return '';
   };
 
+  // Android 判定（一部端末で MediaRecorder の挙動が異なるため）
+  const isAndroid = () =>
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
   // 録音
   const startRecognition = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       const mimeType = getSupportedAudioMimeType();
-      const options = mimeType ? { mimeType, audioBitsPerSecond: 128000 } : { audioBitsPerSecond: 128000 };
-      const mediaRecorder = new MediaRecorder(stream, options);
+      // Android: audioBitsPerSecond を省略すると不安定な端末で動くことがある
+      const bitsPerSecond = isAndroid() ? undefined : 128000;
+      const options =
+        mimeType && bitsPerSecond !== undefined
+          ? { mimeType, audioBitsPerSecond: bitsPerSecond }
+          : mimeType
+            ? { mimeType }
+            : bitsPerSecond !== undefined
+              ? { audioBitsPerSecond: bitsPerSecond }
+              : {};
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        // 指定オプションで失敗した場合はオプションなしで再試行（Android 対策）
+        mediaRecorder = new MediaRecorder(stream);
+      }
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -164,21 +189,47 @@ export default function Home() {
 
       mediaRecorder.onstop = async () => {
         const actualType = mediaRecorder.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: actualType });
+        const chunks = audioChunksRef.current;
+        if (chunks.length === 0) {
+          setResult({ title: '録音データが取得できませんでした', artist: 'マイクの許可と再度お試しください' });
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        const audioBlob = new Blob(chunks, { type: actualType });
         await sendToAudd(audioBlob, actualType);
         stream.getTracks().forEach((track) => track.stop());
       };
 
       setIsRecording(true);
       setResult(null);
-      mediaRecorder.start();
+      // Android: timeslice で定期的にデータを貰い、stop 時の最終チャンク抜けに備える
+      const timesliceMs = isAndroid() ? 500 : undefined;
+      if (timesliceMs !== undefined) {
+        mediaRecorder.start(timesliceMs);
+      } else {
+        mediaRecorder.start();
+      }
+
+      const durationMs = 10000;
+      const stopAt = Date.now() + durationMs;
+      const intervalId = setInterval(() => {
+        if (mediaRecorder.state === 'recording' && typeof mediaRecorder.requestData === 'function') {
+          mediaRecorder.requestData(); // 未フラッシュ分を即座に ondataavailable で受け取る（Android 対策）
+        }
+      }, timesliceMs ?? 2000);
 
       setTimeout(() => {
+        clearInterval(intervalId);
         if (mediaRecorder.state === 'recording') {
+          try {
+            if (typeof mediaRecorder.requestData === 'function') {
+              mediaRecorder.requestData();
+            }
+          } catch (_) {}
           mediaRecorder.stop();
           setIsRecording(false);
         }
-      }, 10000); // 秒数
+      }, durationMs);
     } catch (error) {
       console.error('Error starting recognition:', error);
       setResult({ title: 'マイクの使用を許可してください', artist: '' });
