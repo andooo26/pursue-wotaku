@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSpotifyRedirectUri } from '@/lib/spotify-auth';
 
-const SCOPE = 'playlist-modify-public playlist-modify-private';
+const SCOPE =
+  'playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative';
 
 export async function GET(request: Request) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
