@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server';
+import { getSpotifyRedirectUri } from '@/lib/spotify-auth';
 
 const SCOPE = 'playlist-modify-public playlist-modify-private';
 
-export async function GET() {
+export async function GET(request: Request) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+  const redirectUri = getSpotifyRedirectUri(request);
 
-  if (!clientId || !redirectUri) {
+  if (!clientId) {
     return NextResponse.json(
-      { error: 'Spotify redirect URI not configured. Set SPOTIFY_REDIRECT_URI (e.g. http://localhost:3000/api/spotify/callback)' },
+      { error: 'Spotify CLIENT_ID not configured. Set SPOTIFY_CLIENT_ID in environment variables.' },
+      { status: 500 }
+    );
+  }
+
+  if (!redirectUri) {
+    return NextResponse.json(
+      { error: 'Could not determine redirect URI. Set SPOTIFY_REDIRECT_URI (e.g. https://your-app.vercel.app/api/spotify/callback) or ensure the request has Host header.' },
       { status: 500 }
     );
   }
