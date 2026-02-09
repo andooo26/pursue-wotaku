@@ -65,7 +65,6 @@ export async function GET(request: Request) {
       });
     }
     url = data.next ? data.next : null;
-    if (playlists.length >= 100) break; // 最大100件まで
   }
 
   return NextResponse.json({ playlists });
