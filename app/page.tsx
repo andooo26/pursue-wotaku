@@ -130,11 +130,29 @@ export default function Home() {
     }
   };
 
+  // スマホ（iOS Safari 等）対応: 対応している音声 MIME タイプを取得
+  const getSupportedAudioMimeType = (): string => {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/mp4;codecs=mp4a',
+    ];
+    for (const type of types) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(type)) {
+        return type;
+      }
+    }
+    return '';
+  };
+
   // 録音
   const startRecognition = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedAudioMimeType();
+      const options = mimeType ? { mimeType, audioBitsPerSecond: 128000 } : { audioBitsPerSecond: 128000 };
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -145,8 +163,9 @@ export default function Home() {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await sendToAudd(audioBlob);
+        const actualType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualType });
+        await sendToAudd(audioBlob, actualType);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -159,18 +178,21 @@ export default function Home() {
           mediaRecorder.stop();
           setIsRecording(false);
         }
-      }, 8000); // 秒数
+      }, 10000); // 秒数
     } catch (error) {
       console.error('Error starting recognition:', error);
+      setResult({ title: 'マイクの使用を許可してください', artist: '' });
       setIsRecording(false);
     }
   };
 
-  // audd叩く
-  const sendToAudd = async (audioBlob: Blob) => {
+  // audd叩く（スマホ対応: webm / mp4 どちらでも送れるように）
+  const sendToAudd = async (audioBlob: Blob, mimeType: string = 'audio/webm') => {
     try {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.webm');
+      const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+      const filename = `audio.${ext}`;
+      formData.append('file', audioBlob, filename);
       formData.append('return', 'spotify');
       formData.append('api_token', process.env.NEXT_PUBLIC_AUDD_API_KEY || '');
 
