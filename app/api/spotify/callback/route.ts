@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getSpotifyRedirectUri } from '@/lib/spotify-auth';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
-  const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+  const redirectUri = getSpotifyRedirectUri(request);
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/playlist?error=${encodeURIComponent(message)}`, request.url));
   }
 
-  if (!redirectUri || !clientId || !clientSecret) {
+  if (!clientId || !clientSecret || !redirectUri) {
     return NextResponse.redirect(new URL('/playlist?error=' + encodeURIComponent('Spotify の設定がありません。'), request.url));
   }
 
