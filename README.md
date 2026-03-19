@@ -1,36 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# pursue-wotaku
+## 概要
+- クラブや音楽好きのための、音楽をもっと追求(pursue)する + オタク(wotaku)向けWebアプリ
+- ⾳楽をより深いジャンルで管理したい⼈、気分で聴く⾳楽のジャンルを効率的に変えたい⼈におすすめ！
 
-## Getting Started
+| | | |
+|---|---|---|
+| ![Screenshot 1](https://private-user-images.githubusercontent.com/123529443/566102869-32303f6f-345f-407a-aa17-272550b2a4ae.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzM5MDYwMzMsIm5iZiI6MTc3MzkwNTczMywicGF0aCI6Ii8xMjM1Mjk0NDMvNTY2MTAyODY5LTMyMzAzZjZmLTM0NWYtNDA3YS1hYTE3LTI3MjU1MGIyYTRhZS5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMxOVQwNzM1MzNaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mMDU3YzU5NTc5ODAwMzk1YTM1MDNhYjc1YmE1ZWY0OGRlNDU5OTIyMTQ0ZDNiODBiYzgxZDllNzNkYTdmMDVkJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.YEdV9Lao4ckLhaCFKTga1MCmMOdxnql_b_86bG-0D_g) | ![Screenshot 2](https://private-user-images.githubusercontent.com/123529443/566102870-27015019-3a95-48f6-8b1b-6146553416cd.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzM5MDYwMzMsIm5iZiI6MTc3MzkwNTczMywicGF0aCI6Ii8xMjM1Mjk0NDMvNTY2MTAyODcwLTI3MDE1MDE5LTNhOTUtNDhmNi04YjFiLTYxNDY1NTM0MTZjZC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMxOVQwNzM1MzNaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT05ZDcxNDMxZDAzOWM4ZTQ3YzNkMGU3NTgyMjZmOThhMWMzYjMxN2YyZjFjNmNmNjkzMGI4YjdmYmQ1OTdlOTJkJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.5fyFj0BlcQOb105-ZiIkKBXPMgOYdZrf82jz16cGFZQ) | ![Screenshot 3](https://private-user-images.githubusercontent.com/123529443/566102868-7a16018d-4561-4223-a203-468ba61c21cb.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzM5MDYwMzMsIm5iZiI6MTc3MzkwNTczMywicGF0aCI6Ii8xMjM1Mjk0NDMvNTY2MTAyODY4LTdhMTYwMThkLTQ1NjEtNDIyMy1hMjAzLTQ2OGJhNjFjMjFjYi5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzE5JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMxOVQwNzM1MzNaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1kODdhNDQ0NGMzYzFhYzAwYTQzNWM3OTg3MTU0MTY5ZDllYjBmYjhiNjhkOWRlYjBmYjE0ZGJjNWQ4MzgyMGM4JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.srUwl7POtSDt0oMe8G9ypi1jX_3hbkQ-65RpI8CE8z4) |
 
-First, run the development server:
+## 主な機能
+### 既存のSpotifyプレイリストや認識した楽曲をもとに、⾳楽の細かいジャンルごとでのプレイリスト作成機能
+- J-POPとかの単位ではなくドラムン,ダブステ,エレスイなどの単位での作成に対応！
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 音楽認識機能
+- 今流れている楽曲をその場で認識。Spotifyのプレイリストへ格納できる！
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 使用技術
+- Next.js - フレームワーク
+- Firebase Cloudfirestore - データベース
+- Firebase Authentication - 利用者認証
+- Web Push - プッシュ通知機能
+- Spotify Web API - Spotifyとの連携
+- AudD Music Recognition API - 音声認識
