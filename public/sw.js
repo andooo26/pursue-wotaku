@@ -1,3 +1,4 @@
+console.log("Service Worker Loaded");
 // Service Worker for Push Notifications
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
